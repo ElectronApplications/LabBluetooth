@@ -50,6 +50,19 @@ class MainActivity : AppCompatActivity() {
         val resultsView = findViewById<RecyclerView>(R.id.resultsView)
         val chatLayoutButton = findViewById<Button>(R.id.chatLayoutButton)
         val resultsRefresh = findViewById<SwipeRefreshLayout>(R.id.resultsRefresh)
+        val statsTextView = findViewById<TextView>(R.id.statsTextView)
+
+        val statsLoader = StatsLoader(this)
+        val stats = statsLoader.data
+        if (stats.isNotEmpty()) {
+            statsTextView.append("\nВсего ${stats.sumOf { it.totalMessages }} сообщений")
+
+            val maxTotal = stats.maxBy { it.totalMessages }
+            statsTextView.append("\nБольше всего сообщений - ${maxTotal.deviceName} (${maxTotal.totalMessages})")
+
+            val maxDeleted = stats.maxBy { it.deletedMessages }
+            statsTextView.append("\nБольше всего удалено сообщений - ${maxDeleted.deviceName} (${maxDeleted.deletedMessages})")
+        }
 
         nameEditText.setText(name)
         resultNameTextView.text = name
