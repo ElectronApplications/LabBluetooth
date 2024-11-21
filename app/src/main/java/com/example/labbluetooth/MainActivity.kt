@@ -28,7 +28,7 @@ import kotlin.random.Random
 class MainActivity : AppCompatActivity() {
 //    private lateinit var bluetoothAdapter: BluetoothAdapter
 //    private lateinit var broadcastReceiver: BroadcastReceiver
-    private var devices: MutableList<Pair<String, Int>> = mutableListOf()
+    private lateinit var chats: Array<Pair<String, Int?>>
     private var name = "Guest"
 
     @SuppressLint("MissingPermission")
@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         name = intent.getStringExtra("username") ?: "Guest"
-        devices = (intent.getSerializableExtra("devices") as? Array<Pair<String, Int>> ?: arrayOf(Pair("Default", 0), Pair("Default1", 0))).toMutableList()
+        chats = activeChats(this)
 
         val nameEditText = findViewById<EditText>(R.id.nameEditText)
         val resultNameTextView = findViewById<TextView>(R.id.resultNameTextView)
@@ -51,19 +51,22 @@ class MainActivity : AppCompatActivity() {
         val chatLayoutButton = findViewById<Button>(R.id.chatLayoutButton)
         val resultsRefresh = findViewById<SwipeRefreshLayout>(R.id.resultsRefresh)
 
+        nameEditText.setText(name)
         resultNameTextView.text = name
 
         val layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         resultsView.layoutManager = layoutManager
-        resultsView.adapter = DeviceItemAdapter(devices.toTypedArray())
+        resultsView.adapter = DeviceItemAdapter(chats)
 
         resultsRefresh.setOnRefreshListener {
-            devices.add(Pair(Random.nextInt(0x1000000).toString(16), 0))
-            if (Random.nextFloat() > 0.75) {
-                devices.removeAt(0)
+            val name = Random.nextInt(0x1000000).toString(16)
+            MessageLoader(this, name).save()
+            if (Random.nextFloat() > 0.75 && chats.isNotEmpty()) {
+                MessageLoader(this, chats.last().first).delete()
             }
+            chats = activeChats(this@MainActivity)
 
-            resultsView.adapter = DeviceItemAdapter(devices.toTypedArray())
+            resultsView.adapter = DeviceItemAdapter(chats)
             resultsRefresh.isRefreshing = false
         }
 
@@ -76,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         chatLayoutButton.setOnClickListener {
             val chatIntent = Intent(this, ChatActivity::class.java)
             chatIntent.putExtra("username", name)
-            chatIntent.putExtra("devices", devices.toTypedArray())
+            chatIntent.putExtra("chats", chats)
             finish()
             startActivity(chatIntent)
         }
