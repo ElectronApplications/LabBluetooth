@@ -15,6 +15,8 @@ import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
+import android.widget.Toast.LENGTH_LONG
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -51,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         val chatLayoutButton = findViewById<Button>(R.id.chatLayoutButton)
         val resultsRefresh = findViewById<SwipeRefreshLayout>(R.id.resultsRefresh)
         val statsTextView = findViewById<TextView>(R.id.statsTextView)
+        val exportStatsButton = findViewById<Button>(R.id.exportStatsButton)
 
         val statsLoader = StatsLoader(this)
         val stats = statsLoader.data
@@ -62,6 +65,11 @@ class MainActivity : AppCompatActivity() {
 
             val maxDeleted = stats.maxBy { it.deletedMessages }
             statsTextView.append("\nБольше всего удалено сообщений - ${maxDeleted.deviceName} (${maxDeleted.deletedMessages})")
+        }
+
+        exportStatsButton.setOnClickListener {
+            val uri = saveImage(this@MainActivity, generateStatsImage(statsLoader))
+            Toast.makeText(this@MainActivity, "Экспортировано в $uri", LENGTH_LONG).show()
         }
 
         nameEditText.setText(name)
