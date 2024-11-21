@@ -2,7 +2,6 @@ package com.example.labbluetooth
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.view.ContextMenu
 import android.view.MenuInflater
@@ -13,9 +12,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
-import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -27,7 +24,11 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var chats: Array<Pair<String, Int?>>
 
     private var currentlySelected: String = ""
-    private var loader: MessageLoader? = null
+    private var messageLoader: MessageLoader? = null
+    private lateinit var statsLoader: StatsLoader
+
+    private var sentMessages = 0
+    private var deletedMessages = 0
 
     private lateinit var messagesView: RecyclerView
 
@@ -41,6 +42,7 @@ class ChatActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        statsLoader = StatsLoader(this)
 
         val userDropDown = findViewById<Spinner>(R.id.userDropDown)
         messagesView = findViewById(R.id.messagesView)
@@ -65,10 +67,11 @@ class ChatActivity : AppCompatActivity() {
                 position: Int,
                 id: Long
             ) {
-                loader?.save()
+                saveCurrentMesages()
+
                 currentlySelected = userDropDown.selectedItem as String
-                loader = MessageLoader(this@ChatActivity, currentlySelected)
-                messagesView.adapter = MessageItemAdapter(loader!!.messages.toTypedArray())
+                messageLoader = MessageLoader(this@ChatActivity, currentlySelected)
+                messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -79,21 +82,50 @@ class ChatActivity : AppCompatActivity() {
         messagesView.adapter = MessageItemAdapter(arrayOf())
 
         sendMessageButton.setOnClickListener {
-            loader?.messages?.add(Pair(messageEditText.text.toString(), MessageType.SENT))
-            loader?.messages?.add(Pair(messageEditText.text.toString().reversed(), MessageType.RECEIVED))
+            messageLoader?.messages?.add(Pair(messageEditText.text.toString(), MessageType.SENT))
+            messageLoader?.messages?.add(Pair(messageEditText.text.toString().reversed(), MessageType.RECEIVED))
 
             messageEditText.text.clear()
 
-            messagesView.adapter = MessageItemAdapter(loader?.messages?.toTypedArray() ?: arrayOf())
+            messagesView.adapter = MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
+            sentMessages += 2
         }
 
         mainLayoutButton.setOnClickListener {
-            loader?.save()
+            saveCurrentMesages()
+            statsLoader.save()
             val mainIntent = Intent(this, MainActivity::class.java)
             mainIntent.putExtra("username", name)
             finish()
             startActivity(mainIntent)
         }
+    }
+
+    fun saveCurrentMesages() {
+        if (currentlySelected != "") {
+            messageLoader?.save()
+            val deviceId = statsLoader.data.indexOfFirst { it.deviceName == currentlySelected }
+            if (deviceId != -1) {
+                statsLoader.data[deviceId] = statsLoader.data[deviceId].copy(
+                    totalMessages = statsLoader.data[deviceId].totalMessages + sentMessages,
+                    deletedMessages = statsLoader.data[deviceId].deletedMessages + deletedMessages
+                )
+            } else {
+                statsLoader.data.add(StatsLoader.Item(
+                    deviceName = currentlySelected,
+                    totalMessages = sentMessages,
+                    deletedMessages = deletedMessages
+                ))
+            }
+        }
+        sentMessages = 0
+        deletedMessages = 0
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        saveCurrentMesages()
+        statsLoader.save()
     }
 
     override fun onCreateContextMenu(
@@ -109,8 +141,9 @@ class ChatActivity : AppCompatActivity() {
     override fun onContextItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.delete_message -> {
-                loader?.messages?.removeAt((messagesView.adapter as MessageItemAdapter).position)
-                messagesView.adapter = MessageItemAdapter(loader?.messages?.toTypedArray() ?: arrayOf())
+                messageLoader?.messages?.removeAt((messagesView.adapter as MessageItemAdapter).position)
+                messagesView.adapter = MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
+                deletedMessages += 1
                 true
             }
             else -> super.onContextItemSelected(item)
