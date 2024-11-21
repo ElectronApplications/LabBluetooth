@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class DeviceItemAdapter(private val dataset: Array<Pair<String, Int>>) : RecyclerView.Adapter<DeviceItemAdapter.ViewHolder>() {
+class DeviceItemAdapter(private val dataset: Array<Pair<String, Int?>>) : RecyclerView.Adapter<DeviceItemAdapter.ViewHolder>() {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val messageAmountTextView: TextView = view.findViewById(R.id.messageAmountTextView)
         val deviceNameTextView: TextView = view.findViewById(R.id.deviceNameTextView)
@@ -23,7 +23,7 @@ class DeviceItemAdapter(private val dataset: Array<Pair<String, Int>>) : Recycle
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
         viewHolder.deviceNameTextView.text = dataset[position].first
-        viewHolder.messageAmountTextView.text = dataset[position].second.toString()
+        viewHolder.messageAmountTextView.text = dataset[position].second?.toString() ?: "?"
     }
 
     override fun getItemCount() = dataset.size

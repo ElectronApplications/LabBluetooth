@@ -24,9 +24,10 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ChatActivity : AppCompatActivity() {
     private var name = ""
-    private var devices: MutableList<Pair<String, Int>> = mutableListOf()
-    private var messages: MutableList<Pair<String, MessageType>> = mutableListOf()
+    private lateinit var chats: Array<Pair<String, Int?>>
+
     private var currentlySelected: String = ""
+    private var loader: MessageLoader? = null
 
     private lateinit var messagesView: RecyclerView
 
@@ -50,9 +51,9 @@ class ChatActivity : AppCompatActivity() {
         registerForContextMenu(messagesView)
 
         name = intent.getStringExtra("username") ?: "Guest"
-        devices = (intent.getSerializableExtra("devices") as? Array<Pair<String, Int>> ?: arrayOf()).toMutableList()
+        chats = intent.getSerializableExtra("chats") as? Array<Pair<String, Int?>> ?: arrayOf()
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, devices.map { it.first }.toTypedArray())
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, chats.map { it.first }.toTypedArray())
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         userDropDown.adapter = adapter
 
@@ -64,10 +65,10 @@ class ChatActivity : AppCompatActivity() {
                 position: Int,
                 id: Long
             ) {
+                loader?.save()
                 currentlySelected = userDropDown.selectedItem as String
-                val index = devices.indexOfFirst { it.first == currentlySelected }
-                messages = mutableListOf(Pair("... (${devices[index].second} сообщений)", MessageType.RECEIVED))
-                messagesView.adapter = MessageItemAdapter(messages.toTypedArray())
+                loader = MessageLoader(this@ChatActivity, currentlySelected)
+                messagesView.adapter = MessageItemAdapter(loader!!.messages.toTypedArray())
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -75,24 +76,21 @@ class ChatActivity : AppCompatActivity() {
 
         val layoutManager = LinearLayoutManager(this)
         messagesView.layoutManager = layoutManager
-        messagesView.adapter = MessageItemAdapter(messages.toTypedArray())
+        messagesView.adapter = MessageItemAdapter(arrayOf())
 
         sendMessageButton.setOnClickListener {
-            messages.add(Pair(messageEditText.text.toString(), MessageType.SENT))
-            messages.add(Pair(messageEditText.text.toString().reversed(), MessageType.RECEIVED))
+            loader?.messages?.add(Pair(messageEditText.text.toString(), MessageType.SENT))
+            loader?.messages?.add(Pair(messageEditText.text.toString().reversed(), MessageType.RECEIVED))
 
             messageEditText.text.clear()
 
-            messagesView.adapter = MessageItemAdapter(messages.toTypedArray())
-
-            val index = devices.indexOfFirst { it.first == currentlySelected }
-            devices[index] = Pair(currentlySelected, devices[index].second + 2)
+            messagesView.adapter = MessageItemAdapter(loader?.messages?.toTypedArray() ?: arrayOf())
         }
 
         mainLayoutButton.setOnClickListener {
+            loader?.save()
             val mainIntent = Intent(this, MainActivity::class.java)
             mainIntent.putExtra("username", name)
-            mainIntent.putExtra("devices", devices.toTypedArray())
             finish()
             startActivity(mainIntent)
         }
@@ -111,8 +109,8 @@ class ChatActivity : AppCompatActivity() {
     override fun onContextItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.delete_message -> {
-                messages.removeAt((messagesView.adapter as MessageItemAdapter).position)
-                messagesView.adapter = MessageItemAdapter(messages.toTypedArray())
+                loader?.messages?.removeAt((messagesView.adapter as MessageItemAdapter).position)
+                messagesView.adapter = MessageItemAdapter(loader?.messages?.toTypedArray() ?: arrayOf())
                 true
             }
             else -> super.onContextItemSelected(item)

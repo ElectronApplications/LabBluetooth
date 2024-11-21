@@ -7,9 +7,14 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-enum class MessageType {
-    SENT,
-    RECEIVED
+enum class MessageType(val id: Int) {
+    SENT(0),
+    RECEIVED(1);
+
+    companion object {
+        private val map = entries.associateBy(MessageType::id)
+        fun fromId(type: Int) = map[type]
+    }
 }
 
 class MessageItemAdapter(private val dataset: Array<Pair<String, MessageType>>) :
@@ -33,13 +38,13 @@ class MessageItemAdapter(private val dataset: Array<Pair<String, MessageType>>) 
 
     override fun getItemViewType(position: Int): Int {
         return when (dataset[position].second) {
-            MessageType.SENT -> MessageType.SENT.ordinal
-            MessageType.RECEIVED -> MessageType.RECEIVED.ordinal
+            MessageType.SENT -> MessageType.SENT.id
+            MessageType.RECEIVED -> MessageType.RECEIVED.id
         }
     }
 
     override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): ViewHolder {
-        val view = if (viewType == MessageType.SENT.ordinal) {
+        val view = if (viewType == MessageType.SENT.id) {
             LayoutInflater.from(viewGroup.context)
                 .inflate(R.layout.item_message_sent, viewGroup, false)
         } else {
