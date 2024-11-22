@@ -5,6 +5,14 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
+import java.security.spec.KeySpec
+import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
+import javax.crypto.CipherOutputStream
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
+
 
 fun InputStream.readBoolean(): Boolean {
     val byte = this.read()
@@ -38,26 +46,51 @@ fun OutputStream.writeString(value: String) {
     this.write(value.toByteArray())
 }
 
-class MessageLoader(context: Context, chat: String) {
+class MessageLoader(context: Context, chat: String, password: String? = null) {
     private val file: File = File(context.filesDir, "${chat}.chat")
 
     var encrypted: Boolean private set
     var messages: MutableList<Pair<String, MessageType>>
 
+    var password: String? = password
+        set(value) {
+            field = value
+            encrypted = value != null
+        }
+
     init {
         if (file.isFile()) {
             file.inputStream().use { stream ->
                 encrypted = stream.readBoolean()
-                if (encrypted) {
-                    // TODO
+
+                val nestedStream: InputStream = if (encrypted) {
+                    throw NotImplementedError()
+
+//                    if (password == null) {
+//                        throw Exception("Password was not provided for encrypted file")
+//                    }
+//
+//                    val cipher = Cipher.getInstance("AES/GCM/PKCS5Padding")
+//
+//                    val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+//                    val spec: KeySpec = PBEKeySpec(password.toCharArray())
+//                    val tmp = factory.generateSecret(spec)
+//                    val secret = SecretKeySpec(tmp.encoded, "AES")
+//
+//                    cipher.init(Cipher.DECRYPT_MODE, secret)
+//                    CipherInputStream(stream, cipher)
+                } else {
+                    stream
                 }
 
-                val messagesAmount = stream.readInt()
-                messages = (0 until messagesAmount).map {
-                    val type = MessageType.fromId(stream.readInt())!!
-                    val message = stream.readString()
-                    Pair(message, type)
-                }.toMutableList()
+                nestedStream.use {
+                    val messagesAmount = stream.readInt()
+                    messages = (0 until messagesAmount).map {
+                        val type = MessageType.fromId(stream.readInt())!!
+                        val message = stream.readString()
+                        Pair(message, type)
+                    }.toMutableList()
+                }
             }
         } else {
             encrypted = false
@@ -72,15 +105,30 @@ class MessageLoader(context: Context, chat: String) {
     fun save() {
         file.outputStream().use { stream ->
             stream.writeBoolean(encrypted)
-            if (encrypted) {
-                // TODO
+
+            val nestedStream: OutputStream = if (encrypted) {
+                throw NotImplementedError()
+
+//                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+//
+//                val factory = SecretKeyFactory.getInstance("PBEwithHmacSHA256AndAES_256")
+//                val spec: KeySpec = PBEKeySpec(password!!.toCharArray())
+//                val tmp = factory.generateSecret(spec)
+//                val secret = SecretKeySpec(tmp.encoded, "AES")
+//
+//                cipher.init(Cipher.ENCRYPT_MODE, secret)
+//                CipherOutputStream(stream, cipher)
+            } else {
+                stream
             }
 
-            stream.writeInt(messages.size)
+            nestedStream.use {
+                stream.writeInt(messages.size)
 
-            messages.forEach { (message, type) ->
-                stream.writeInt(type.id)
-                stream.writeString(message)
+                messages.forEach { (message, type) ->
+                    stream.writeInt(type.id)
+                    stream.writeString(message)
+                }
             }
         }
     }
@@ -90,6 +138,10 @@ fun activeChats(context: Context): Array<Pair<String, Int?>> {
     val senders = context.fileList().filter { it.endsWith(".chat") }
     return senders.map {
         val name = it.dropLast(".chat".length)
-        Pair(name, MessageLoader(context, name).messages.size)
+        try {
+            Pair(name, MessageLoader(context, name).messages.size)
+        } catch (e: Exception) {
+            Pair(name, null)
+        }
     }.toTypedArray()
 }
