@@ -67,11 +67,15 @@ class ChatActivity : AppCompatActivity() {
                 position: Int,
                 id: Long
             ) {
-                saveCurrentMesages()
-
-                currentlySelected = userDropDown.selectedItem as String
-                messageLoader = MessageLoader(this@ChatActivity, currentlySelected)
-                messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
+                saveCurrentMessages()
+                try {
+                    currentlySelected = userDropDown.selectedItem as String
+                    messageLoader = MessageLoader(this@ChatActivity, currentlySelected)
+                    messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    currentlySelected = ""
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -92,7 +96,7 @@ class ChatActivity : AppCompatActivity() {
         }
 
         mainLayoutButton.setOnClickListener {
-            saveCurrentMesages()
+            saveCurrentMessages()
             statsLoader.save()
             val mainIntent = Intent(this, MainActivity::class.java)
             mainIntent.putExtra("username", name)
@@ -101,7 +105,7 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    fun saveCurrentMesages() {
+    fun saveCurrentMessages() {
         if (currentlySelected != "") {
             messageLoader?.save()
             val deviceId = statsLoader.data.indexOfFirst { it.deviceName == currentlySelected }
@@ -124,7 +128,7 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        saveCurrentMesages()
+        saveCurrentMessages()
         statsLoader.save()
     }
 
