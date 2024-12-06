@@ -27,7 +27,11 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.example.labbluetooth.database.DaoSession
 import com.example.labbluetooth.database.Device
+import com.example.labbluetooth.database.DeviceTag
 import kotlin.random.Random
+import kotlin.random.nextInt
+
+val defaultTags = arrayOf("Лучший друг", "Семья", "Друг", "Незнакомец", "sugar daddy", "sugar mommy")
 
 class MainActivity : AppCompatActivity() {
 //    private lateinit var bluetoothAdapter: BluetoothAdapter
@@ -86,7 +90,15 @@ class MainActivity : AppCompatActivity() {
 
         resultsRefresh.setOnRefreshListener {
             val name = Random.nextInt(0x1000000).toString(16)
-            daoSession.deviceDao.save(Device(null, name, 0))
+
+            val device = Device(null, name, 0)
+            daoSession.deviceDao.save(device)
+
+            defaultTags.toList().shuffled().take(Random.nextInt(defaultTags.size)).forEach { tagName ->
+                val tag = DeviceTag(null, tagName, device.id)
+                daoSession.deviceTagDao.save(tag)
+            }
+
             MessageLoader(this, name).save()
 
             if (Random.nextFloat() > 0.75 && chats.isNotEmpty()) {
