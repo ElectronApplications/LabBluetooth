@@ -12,6 +12,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -56,6 +57,7 @@ class ChatActivity : AppCompatActivity() {
         val messageEditText = findViewById<EditText>(R.id.messageEditText)
         val sendMessageButton = findViewById<Button>(R.id.sendMessageButton)
         val mainLayoutButton = findViewById<Button>(R.id.mainLayoutButton)
+        val tagsTextView = findViewById<TextView>(R.id.tagsTextView)
 
         registerForContextMenu(messagesView)
 
@@ -78,6 +80,7 @@ class ChatActivity : AppCompatActivity() {
                     currentlySelected = chats.first { it.name == userDropDown.selectedItem as String }
                     messageLoader = MessageLoader(this@ChatActivity, currentlySelected!!.name)
                     messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
+                    tagsTextView.text = "Теги: " + currentlySelected!!.deviceTags.joinToString(", ") { it.name }
                 } catch (e: Exception) {
                     e.printStackTrace()
                     currentlySelected = null
