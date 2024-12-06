@@ -133,15 +133,3 @@ class MessageLoader(context: Context, chat: String, password: String? = null) {
         }
     }
 }
-
-fun activeChats(context: Context): Array<Pair<String, Int?>> {
-    val senders = context.fileList().filter { it.endsWith(".chat") }
-    return senders.map {
-        val name = it.dropLast(".chat".length)
-        try {
-            Pair(name, MessageLoader(context, name).messages.size)
-        } catch (e: Exception) {
-            Pair(name, null)
-        }
-    }.toTypedArray()
-}

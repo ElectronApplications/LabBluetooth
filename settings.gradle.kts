@@ -10,6 +10,14 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "org.greenrobot.greendao") {
+                useModule("org.greenrobot:greendao-gradle-plugin:${requested.version}")
+            }
+        }
+    }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)

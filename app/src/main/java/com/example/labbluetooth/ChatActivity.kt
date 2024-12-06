@@ -18,14 +18,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.labbluetooth.database.DaoSession
+import com.example.labbluetooth.database.Device
 
 class ChatActivity : AppCompatActivity() {
     private var name = ""
-    private lateinit var chats: Array<Pair<String, Int?>>
+    private lateinit var chats: Array<Device>
 
-    private var currentlySelected: String = ""
+    private var currentlySelected: Device? = null
     private var messageLoader: MessageLoader? = null
     private lateinit var statsLoader: StatsLoader
+    private lateinit var daoSession: DaoSession
 
     private var sentMessages = 0
     private var deletedMessages = 0
@@ -42,7 +45,11 @@ class ChatActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
         statsLoader = StatsLoader(this)
+        daoSession = (application as App).daoSession
+
+        chats = daoSession.deviceDao.loadAll().toTypedArray()
 
         val userDropDown = findViewById<Spinner>(R.id.userDropDown)
         messagesView = findViewById(R.id.messagesView)
@@ -53,9 +60,8 @@ class ChatActivity : AppCompatActivity() {
         registerForContextMenu(messagesView)
 
         name = intent.getStringExtra("username") ?: "Guest"
-        chats = intent.getSerializableExtra("chats") as? Array<Pair<String, Int?>> ?: arrayOf()
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, chats.map { it.first }.toTypedArray())
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, chats.map { it.name }.toTypedArray())
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         userDropDown.adapter = adapter
 
@@ -69,12 +75,12 @@ class ChatActivity : AppCompatActivity() {
             ) {
                 saveCurrentMessages()
                 try {
-                    currentlySelected = userDropDown.selectedItem as String
-                    messageLoader = MessageLoader(this@ChatActivity, currentlySelected)
+                    currentlySelected = chats.first { it.name == userDropDown.selectedItem as String }
+                    messageLoader = MessageLoader(this@ChatActivity, currentlySelected!!.name)
                     messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    currentlySelected = ""
+                    currentlySelected = null
                 }
             }
 
@@ -93,6 +99,9 @@ class ChatActivity : AppCompatActivity() {
 
             messagesView.adapter = MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
             sentMessages += 2
+            if (currentlySelected?.messagesAmount != null) {
+                currentlySelected!!.messagesAmount += 2
+            }
         }
 
         mainLayoutButton.setOnClickListener {
@@ -106,9 +115,10 @@ class ChatActivity : AppCompatActivity() {
     }
 
     fun saveCurrentMessages() {
-        if (currentlySelected != "") {
+        if (currentlySelected != null) {
+            daoSession.deviceDao.save(currentlySelected)
             messageLoader?.save()
-            val deviceId = statsLoader.data.indexOfFirst { it.deviceName == currentlySelected }
+            val deviceId = statsLoader.data.indexOfFirst { it.deviceName == currentlySelected!!.name }
             if (deviceId != -1) {
                 statsLoader.data[deviceId] = statsLoader.data[deviceId].copy(
                     totalMessages = statsLoader.data[deviceId].totalMessages + sentMessages,
@@ -116,7 +126,7 @@ class ChatActivity : AppCompatActivity() {
                 )
             } else {
                 statsLoader.data.add(StatsLoader.Item(
-                    deviceName = currentlySelected,
+                    deviceName = currentlySelected!!.name,
                     totalMessages = sentMessages,
                     deletedMessages = deletedMessages
                 ))
