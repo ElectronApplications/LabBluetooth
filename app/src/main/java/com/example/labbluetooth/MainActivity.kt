@@ -25,12 +25,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.example.labbluetooth.database.DaoSession
+import com.example.labbluetooth.database.Device
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 //    private lateinit var bluetoothAdapter: BluetoothAdapter
 //    private lateinit var broadcastReceiver: BroadcastReceiver
-    private lateinit var chats: Array<Pair<String, Int?>>
+    private lateinit var chats: Array<Device>
+    private lateinit var daoSession: DaoSession
     private var name = "Guest"
 
     @SuppressLint("MissingPermission")
@@ -44,8 +47,10 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        daoSession = (application as App).daoSession
+
         name = intent.getStringExtra("username") ?: "Guest"
-        chats = activeChats(this)
+        chats = daoSession.deviceDao.loadAll().toTypedArray()
 
         val nameEditText = findViewById<EditText>(R.id.nameEditText)
         val resultNameTextView = findViewById<TextView>(R.id.resultNameTextView)
@@ -81,11 +86,15 @@ class MainActivity : AppCompatActivity() {
 
         resultsRefresh.setOnRefreshListener {
             val name = Random.nextInt(0x1000000).toString(16)
+            daoSession.deviceDao.save(Device(null, name, 0))
             MessageLoader(this, name).save()
+
             if (Random.nextFloat() > 0.75 && chats.isNotEmpty()) {
-                MessageLoader(this, chats.last().first).delete()
+                val lastDevice = chats.last()
+                MessageLoader(this, lastDevice.name).delete()
+                daoSession.deviceDao.delete(lastDevice)
             }
-            chats = activeChats(this@MainActivity)
+            chats = daoSession.deviceDao.loadAll().toTypedArray()
 
             resultsView.adapter = DeviceItemAdapter(chats)
             resultsRefresh.isRefreshing = false
@@ -100,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         chatLayoutButton.setOnClickListener {
             val chatIntent = Intent(this, ChatActivity::class.java)
             chatIntent.putExtra("username", name)
-            chatIntent.putExtra("chats", chats)
             finish()
             startActivity(chatIntent)
         }

@@ -1,4 +1,7 @@
+import org.gradle.internal.declarativedsl.parsing.main
+
 plugins {
+    alias(libs.plugins.greenrobot.greendao)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
@@ -36,7 +39,7 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.greenrobot.greendao)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
