@@ -12,7 +12,7 @@ import android.provider.MediaStore
 import androidx.core.graphics.createBitmap
 import java.io.IOException
 
-fun generateStatsImage(loader: StatsLoader): Bitmap {
+fun generateStatsImage(stats: List<StatsLoader.Item>): Bitmap {
     val bitmap = createBitmap(800, 600)
     bitmap.eraseColor(Color.WHITE)
 
@@ -29,7 +29,8 @@ fun generateStatsImage(loader: StatsLoader): Bitmap {
     canvas.drawText("2", 200f, 400f, paint)
     canvas.drawText("3", 600f, 500f, paint)
 
-    val data: MutableList<Pair<String, Int>> = loader.data.map { Pair(it.deviceName, it.totalMessages) }.toMutableList()
+    val data: MutableList<Pair<String, Int>> =
+        stats.map { Pair(it.deviceName, it.totalMessages) }.toMutableList()
     data.sortByDescending { it.second }
 
     data.getOrNull(0)?.let {
