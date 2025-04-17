@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.os.bundleOf
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.commit
@@ -29,10 +28,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 fragment.saveCurrentMessages()
                 supportFragmentManager.commit {
                     setReorderingAllowed(true)
-                    replace<MainFragment>(
-                        R.id.fragmentView,
-                        args = bundleOf("username" to fragment.username)
-                    )
+                    replace<MainFragment>(R.id.fragmentView)
                 }
             }
         }
@@ -42,10 +38,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             if (fragment is MainFragment) {
                 supportFragmentManager.commit {
                     setReorderingAllowed(true)
-                    replace<ChatFragment>(
-                        R.id.fragmentView,
-                        args = bundleOf("username" to fragment.username)
-                    )
+                    replace<ChatFragment>(R.id.fragmentView)
                 }
             }
         }
