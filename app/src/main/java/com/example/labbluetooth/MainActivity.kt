@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
@@ -31,10 +33,11 @@ import com.example.labbluetooth.database.DeviceTag
 import kotlin.random.Random
 import kotlin.random.nextInt
 
-val defaultTags = arrayOf("Лучший друг", "Семья", "Друг", "Незнакомец", "sugar daddy", "sugar mommy")
+val defaultTags =
+    arrayOf("Лучший друг", "Семья", "Друг", "Незнакомец", "sugar daddy", "sugar mommy")
 
 class MainActivity : AppCompatActivity() {
-//    private lateinit var bluetoothAdapter: BluetoothAdapter
+    //    private lateinit var bluetoothAdapter: BluetoothAdapter
 //    private lateinit var broadcastReceiver: BroadcastReceiver
     private lateinit var chats: Array<Device>
     private lateinit var daoSession: DaoSession
@@ -64,16 +67,19 @@ class MainActivity : AppCompatActivity() {
         val statsTextView = findViewById<TextView>(R.id.statsTextView)
         val exportStatsButton = findViewById<Button>(R.id.exportStatsButton)
 
-        val statsLoader = StatsLoader(this)
-        val stats = statsLoader.data
-        if (stats.isNotEmpty()) {
-            statsTextView.append("\nВсего ${stats.sumOf { it.totalMessages }} сообщений")
+        val statsLoader = StatsLoader(this) { loader ->
+            Handler(Looper.getMainLooper()).post {
+                val stats = loader.data
+                if (stats.isNotEmpty()) {
+                    statsTextView.append("\nВсего ${stats.sumOf { it.totalMessages }} сообщений")
 
-            val maxTotal = stats.maxBy { it.totalMessages }
-            statsTextView.append("\nБольше всего сообщений - ${maxTotal.deviceName} (${maxTotal.totalMessages})")
+                    val maxTotal = stats.maxBy { it.totalMessages }
+                    statsTextView.append("\nБольше всего сообщений - ${maxTotal.deviceName} (${maxTotal.totalMessages})")
 
-            val maxDeleted = stats.maxBy { it.deletedMessages }
-            statsTextView.append("\nБольше всего удалено сообщений - ${maxDeleted.deviceName} (${maxDeleted.deletedMessages})")
+                    val maxDeleted = stats.maxBy { it.deletedMessages }
+                    statsTextView.append("\nБольше всего удалено сообщений - ${maxDeleted.deviceName} (${maxDeleted.deletedMessages})")
+                }
+            }
         }
 
         exportStatsButton.setOnClickListener {
@@ -94,16 +100,17 @@ class MainActivity : AppCompatActivity() {
             val device = Device(null, name, 0)
             daoSession.deviceDao.save(device)
 
-            defaultTags.toList().shuffled().take(Random.nextInt(defaultTags.size)).forEach { tagName ->
-                val tag = DeviceTag(null, tagName, device.id)
-                daoSession.deviceTagDao.save(tag)
-            }
+            defaultTags.toList().shuffled().take(Random.nextInt(defaultTags.size))
+                .forEach { tagName ->
+                    val tag = DeviceTag(null, tagName, device.id)
+                    daoSession.deviceTagDao.save(tag)
+                }
 
-            MessageLoader(this, name).save()
+            MessageLoader(this, name, { it.save() })
 
             if (Random.nextFloat() > 0.75 && chats.isNotEmpty()) {
                 val lastDevice = chats.last()
-                MessageLoader(this, lastDevice.name).delete()
+                MessageLoader(this, lastDevice.name, { it.delete() })
                 daoSession.deviceDao.delete(lastDevice)
             }
             chats = daoSession.deviceDao.loadAll().toTypedArray()

@@ -3,6 +3,8 @@ package com.example.labbluetooth
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.ContextMenu
 import android.view.MenuInflater
 import android.view.MenuItem
@@ -47,7 +49,7 @@ class ChatActivity : AppCompatActivity() {
             insets
         }
 
-        statsLoader = StatsLoader(this)
+        StatsLoader(this) { statsLoader = it }
         daoSession = (application as App).daoSession
 
         chats = daoSession.deviceDao.loadAll().toTypedArray()
@@ -63,11 +65,15 @@ class ChatActivity : AppCompatActivity() {
 
         name = intent.getStringExtra("username") ?: "Guest"
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, chats.map { it.name }.toTypedArray())
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            chats.map { it.name }.toTypedArray()
+        )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         userDropDown.adapter = adapter
 
-        userDropDown.onItemSelectedListener = object: AdapterView.OnItemSelectedListener {
+        userDropDown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             @SuppressLint("SetTextI18n")
             override fun onItemSelected(
                 parent: AdapterView<*>?,
@@ -77,10 +83,16 @@ class ChatActivity : AppCompatActivity() {
             ) {
                 saveCurrentMessages()
                 try {
-                    currentlySelected = chats.first { it.name == userDropDown.selectedItem as String }
-                    messageLoader = MessageLoader(this@ChatActivity, currentlySelected!!.name)
-                    messagesView.adapter = MessageItemAdapter(messageLoader!!.messages.toTypedArray())
-                    tagsTextView.text = "Теги: " + currentlySelected!!.deviceTags.joinToString(", ") { it.name }
+                    currentlySelected =
+                        chats.first { it.name == userDropDown.selectedItem as String }
+                    messageLoader = MessageLoader(this@ChatActivity, currentlySelected!!.name, {
+                        Handler(Looper.getMainLooper()).post {
+                            messagesView.adapter =
+                                MessageItemAdapter(messageLoader!!.messages.toTypedArray())
+                        }
+                    })
+                    tagsTextView.text =
+                        "Теги: " + currentlySelected!!.deviceTags.joinToString(", ") { it.name }
                 } catch (e: Exception) {
                     e.printStackTrace()
                     currentlySelected = null
@@ -96,11 +108,17 @@ class ChatActivity : AppCompatActivity() {
 
         sendMessageButton.setOnClickListener {
             messageLoader?.messages?.add(Pair(messageEditText.text.toString(), MessageType.SENT))
-            messageLoader?.messages?.add(Pair(messageEditText.text.toString().reversed(), MessageType.RECEIVED))
+            messageLoader?.messages?.add(
+                Pair(
+                    messageEditText.text.toString().reversed(),
+                    MessageType.RECEIVED
+                )
+            )
 
             messageEditText.text.clear()
 
-            messagesView.adapter = MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
+            messagesView.adapter =
+                MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
             sentMessages += 2
             if (currentlySelected?.messagesAmount != null) {
                 currentlySelected!!.messagesAmount += 2
@@ -121,18 +139,21 @@ class ChatActivity : AppCompatActivity() {
         if (currentlySelected != null) {
             daoSession.deviceDao.save(currentlySelected)
             messageLoader?.save()
-            val deviceId = statsLoader.data.indexOfFirst { it.deviceName == currentlySelected!!.name }
+            val deviceId =
+                statsLoader.data.indexOfFirst { it.deviceName == currentlySelected!!.name }
             if (deviceId != -1) {
                 statsLoader.data[deviceId] = statsLoader.data[deviceId].copy(
                     totalMessages = statsLoader.data[deviceId].totalMessages + sentMessages,
                     deletedMessages = statsLoader.data[deviceId].deletedMessages + deletedMessages
                 )
             } else {
-                statsLoader.data.add(StatsLoader.Item(
-                    deviceName = currentlySelected!!.name,
-                    totalMessages = sentMessages,
-                    deletedMessages = deletedMessages
-                ))
+                statsLoader.data.add(
+                    StatsLoader.Item(
+                        deviceName = currentlySelected!!.name,
+                        totalMessages = sentMessages,
+                        deletedMessages = deletedMessages
+                    )
+                )
             }
         }
         sentMessages = 0
@@ -159,10 +180,12 @@ class ChatActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.delete_message -> {
                 messageLoader?.messages?.removeAt((messagesView.adapter as MessageItemAdapter).position)
-                messagesView.adapter = MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
+                messagesView.adapter =
+                    MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
                 deletedMessages += 1
                 true
             }
+
             else -> super.onContextItemSelected(item)
         }
     }
