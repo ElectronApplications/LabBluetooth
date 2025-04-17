@@ -20,7 +20,13 @@ fun InputStream.readBoolean(): Boolean {
 }
 
 fun OutputStream.writeBoolean(value: Boolean) {
-    this.write(if (value) {1} else {0})
+    this.write(
+        if (value) {
+            1
+        } else {
+            0
+        }
+    )
 }
 
 fun InputStream.readInt(): Int {
@@ -46,11 +52,17 @@ fun OutputStream.writeString(value: String) {
     this.write(value.toByteArray())
 }
 
-class MessageLoader(context: Context, chat: String, password: String? = null) {
+class MessageLoader(
+    context: Context,
+    chat: String,
+    loadedCallback: (self: MessageLoader) -> Unit,
+    password: String? = null
+) {
     private val file: File = File(context.filesDir, "${chat}.chat")
 
-    var encrypted: Boolean private set
-    var messages: MutableList<Pair<String, MessageType>>
+    var encrypted: Boolean = false
+        private set
+    lateinit var messages: MutableList<Pair<String, MessageType>>
 
     var password: String? = password
         set(value) {
@@ -58,13 +70,16 @@ class MessageLoader(context: Context, chat: String, password: String? = null) {
             encrypted = value != null
         }
 
-    init {
-        if (file.isFile()) {
-            file.inputStream().use { stream ->
-                encrypted = stream.readBoolean()
+    private var currentThread: Thread
 
-                val nestedStream: InputStream = if (encrypted) {
-                    throw NotImplementedError()
+    init {
+        currentThread = Thread {
+            if (file.isFile()) {
+                file.inputStream().use { stream ->
+                    encrypted = stream.readBoolean()
+
+                    val nestedStream: InputStream = if (encrypted) {
+                        throw NotImplementedError()
 
 //                    if (password == null) {
 //                        throw Exception("Password was not provided for encrypted file")
@@ -79,35 +94,51 @@ class MessageLoader(context: Context, chat: String, password: String? = null) {
 //
 //                    cipher.init(Cipher.DECRYPT_MODE, secret)
 //                    CipherInputStream(stream, cipher)
-                } else {
-                    stream
-                }
+                    } else {
+                        stream
+                    }
 
-                nestedStream.use {
-                    val messagesAmount = stream.readInt()
-                    messages = (0 until messagesAmount).map {
-                        val type = MessageType.fromId(stream.readInt())!!
-                        val message = stream.readString()
-                        Pair(message, type)
-                    }.toMutableList()
+                    nestedStream.use {
+                        val messagesAmount = stream.readInt()
+                        messages = (0 until messagesAmount).map {
+                            val type = MessageType.fromId(stream.readInt())!!
+                            val message = stream.readString()
+                            Pair(message, type)
+                        }.toMutableList()
+                    }
                 }
+            } else {
+                encrypted = false
+                messages = mutableListOf()
             }
-        } else {
-            encrypted = false
-            messages = mutableListOf()
+            loadedCallback(this@MessageLoader)
         }
+        currentThread.start()
+    }
+
+    fun stop() {
+        currentThread.interrupt()
     }
 
     fun delete() {
+        if (currentThread.isAlive) {
+            currentThread.join()
+        }
+
         file.delete()
     }
 
     fun save() {
-        file.outputStream().use { stream ->
-            stream.writeBoolean(encrypted)
+        if (currentThread.isAlive) {
+            currentThread.join()
+        }
 
-            val nestedStream: OutputStream = if (encrypted) {
-                throw NotImplementedError()
+        currentThread = Thread {
+            file.outputStream().use { stream ->
+                stream.writeBoolean(encrypted)
+
+                val nestedStream: OutputStream = if (encrypted) {
+                    throw NotImplementedError()
 
 //                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
 //
@@ -118,18 +149,20 @@ class MessageLoader(context: Context, chat: String, password: String? = null) {
 //
 //                cipher.init(Cipher.ENCRYPT_MODE, secret)
 //                CipherOutputStream(stream, cipher)
-            } else {
-                stream
-            }
+                } else {
+                    stream
+                }
 
-            nestedStream.use {
-                stream.writeInt(messages.size)
+                nestedStream.use {
+                    stream.writeInt(messages.size)
 
-                messages.forEach { (message, type) ->
-                    stream.writeInt(type.id)
-                    stream.writeString(message)
+                    messages.forEach { (message, type) ->
+                        stream.writeInt(type.id)
+                        stream.writeString(message)
+                    }
                 }
             }
         }
+        currentThread.start()
     }
 }
