@@ -8,8 +8,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.commit
 import androidx.fragment.app.replace
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    private lateinit var viewModel: MainViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -19,13 +22,15 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             insets
         }
 
+        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+
         val mainLayoutButton = findViewById<Button>(R.id.mainLayoutButton)
         val chatLayoutButton = findViewById<Button>(R.id.chatLayoutButton)
 
         mainLayoutButton.setOnClickListener {
             val fragment = supportFragmentManager.findFragmentById((R.id.fragmentView))
             if (fragment is ChatFragment) {
-                fragment.saveCurrentMessages()
+                viewModel.saveCurrentMessages()
                 supportFragmentManager.commit {
                     setReorderingAllowed(true)
                     replace<MainFragment>(R.id.fragmentView)
@@ -47,7 +52,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     override fun onDestroy() {
         val fragment = supportFragmentManager.findFragmentById((R.id.fragmentView))
         if (fragment is ChatFragment) {
-            fragment.saveCurrentMessages()
+            viewModel.saveCurrentMessages()
         }
 
         super.onDestroy()
