@@ -16,7 +16,9 @@ val defaultTags =
 data class MainUiState(
     val username: String,
     val stats: List<StatsLoader.Item>,
-    val chats: List<Device>
+    val chats: List<Device>,
+    val messages: List<Pair<String, MessageType>>?,
+    val tags: List<DeviceTag>?
 )
 
 class MainViewModel(private val application: Application) : AndroidViewModel(application) {
@@ -28,11 +30,18 @@ class MainViewModel(private val application: Application) : AndroidViewModel(app
 
     private var chats: List<Device> = daoSession.deviceDao.loadAll()
 
+    private var currentlySelected: Device? = null
+    private var messageLoader: MessageLoader? = null
+    private var sentMessages = 0
+    private var deletedMessages = 0
+
     private val _uiState = MutableLiveData(
         MainUiState(
             username = username,
             stats = statsLoader.data,
-            chats = chats
+            chats = chats,
+            messages = null,
+            tags = null
         )
     )
     val uiState: LiveData<MainUiState> get() = _uiState
@@ -68,5 +77,73 @@ class MainViewModel(private val application: Application) : AndroidViewModel(app
 
         chats = daoSession.deviceDao.loadAll()
         _uiState.value = _uiState.value?.copy(chats = chats)
+    }
+
+    fun saveCurrentMessages() {
+        currentlySelected?.let { current ->
+            daoSession.deviceDao.save(current)
+            messageLoader?.save()
+
+            val deviceId = statsLoader.data.indexOfFirst { it.deviceName == current.name }
+            if (deviceId != -1) {
+                statsLoader.data[deviceId] = statsLoader.data[deviceId].copy(
+                    totalMessages = statsLoader.data[deviceId].totalMessages + sentMessages,
+                    deletedMessages = statsLoader.data[deviceId].deletedMessages + deletedMessages
+                )
+            } else {
+                statsLoader.data.add(
+                    StatsLoader.Item(
+                        deviceName = current.name,
+                        totalMessages = sentMessages,
+                        deletedMessages = deletedMessages
+                    )
+                )
+            }
+        }
+
+        sentMessages = 0
+        deletedMessages = 0
+
+        statsLoader.save()
+    }
+
+    fun switchChat(deviceName: String) {
+        saveCurrentMessages()
+        try {
+            val device = chats.first { it.name == deviceName }
+            currentlySelected = device
+            val loader = MessageLoader(application, device.name)
+            messageLoader = loader
+
+            _uiState.value = _uiState.value?.copy(
+                messages = loader.messages,
+                tags = device.deviceTags
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            currentlySelected = null
+        }
+    }
+
+    fun addMessage(message: String) {
+        messageLoader?.let { loader ->
+            loader.messages.add(Pair(message, MessageType.SENT))
+            loader.messages.add(Pair(message.reversed(), MessageType.RECEIVED))
+
+            sentMessages += 2
+            currentlySelected?.let { current ->
+                current.messagesAmount += 2
+            }
+
+            _uiState.value = _uiState.value?.copy(messages = loader.messages)
+        }
+    }
+
+    fun deleteMessage(position: Int) {
+        messageLoader?.let { loader ->
+            loader.messages.removeAt(position)
+            deletedMessages += 1
+            _uiState.value = _uiState.value?.copy(messages = loader.messages)
+        }
     }
 }

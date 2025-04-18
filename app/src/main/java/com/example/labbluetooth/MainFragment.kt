@@ -28,7 +28,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
         nameEditText.setText(viewModel.username)
 
-        viewModel.uiState.observe(requireActivity()) { uiState ->
+        viewModel.uiState.observe(viewLifecycleOwner) { uiState ->
             resultNameTextView.text = uiState.username
             resultsView.adapter = DeviceItemAdapter(uiState.chats.toTypedArray())
 

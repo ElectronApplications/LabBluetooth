@@ -13,74 +13,60 @@ import android.widget.EditText
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.labbluetooth.database.DaoSession
-import com.example.labbluetooth.database.Device
 
 class ChatFragment : Fragment(R.layout.fragment_chat) {
-    private lateinit var chats: Array<Device>
-    private var currentlySelected: Device? = null
+    private lateinit var viewModel: MainViewModel
 
-    private var messageLoader: MessageLoader? = null
-    private lateinit var statsLoader: StatsLoader
-    private lateinit var daoSession: DaoSession
-    private var sentMessages = 0
-
-    private var deletedMessages = 0
-    private lateinit var messagesView: RecyclerView
-
-    var username = ""
-
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        arguments?.let {
-            username = it.getString("username") ?: "Guest"
-        }
-
-        statsLoader = StatsLoader(requireActivity())
-        daoSession = (requireActivity().application as App).daoSession
-
-        chats = daoSession.deviceDao.loadAll().toTypedArray()
+        viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
 
         val userDropDown = view.findViewById<Spinner>(R.id.userDropDown)
-        messagesView = view.findViewById(R.id.messagesView)
+        val messagesView = view.findViewById<RecyclerView>(R.id.messagesView)
         val messageEditText = view.findViewById<EditText>(R.id.messageEditText)
         val sendMessageButton = view.findViewById<Button>(R.id.sendMessageButton)
         val tagsTextView = view.findViewById<TextView>(R.id.tagsTextView)
 
+        var previousChats = emptyList<Long>()
+        viewModel.uiState.observe(viewLifecycleOwner) { uiState ->
+            val currentChats = uiState.chats.map { it.id }
+            if (currentChats != previousChats) {
+                val adapter = ArrayAdapter(
+                    requireActivity(),
+                    android.R.layout.simple_spinner_item,
+                    uiState.chats.map { it.name }.toTypedArray()
+                )
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                userDropDown.adapter = adapter
+
+                previousChats = currentChats
+            }
+
+            messagesView.adapter =
+                MessageItemAdapter(uiState.messages?.toTypedArray() ?: emptyArray())
+
+            if (uiState.tags != null) {
+                tagsTextView.text = "Теги: " + uiState.tags.joinToString(", ") { it.name }
+            } else {
+                tagsTextView.text = ""
+            }
+        }
+
         registerForContextMenu(messagesView)
 
-        val adapter = ArrayAdapter(
-            requireActivity(),
-            android.R.layout.simple_spinner_item,
-            chats.map { it.name }.toTypedArray()
-        )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        userDropDown.adapter = adapter
-
         userDropDown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            @SuppressLint("SetTextI18n")
             override fun onItemSelected(
                 parent: AdapterView<*>?,
                 view: View?,
                 position: Int,
                 id: Long
             ) {
-                saveCurrentMessages()
-                try {
-                    currentlySelected =
-                        chats.first { it.name == userDropDown.selectedItem as String }
-                    messageLoader = MessageLoader(requireActivity(), currentlySelected!!.name)
-                    messagesView.adapter =
-                        MessageItemAdapter(messageLoader!!.messages.toTypedArray())
-                    tagsTextView.text =
-                        "Теги: " + currentlySelected!!.deviceTags.joinToString(", ") { it.name }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    currentlySelected = null
-                }
+                viewModel.switchChat(userDropDown.selectedItem as String)
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -88,53 +74,11 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
         val layoutManager = LinearLayoutManager(requireActivity())
         messagesView.layoutManager = layoutManager
-        messagesView.adapter = MessageItemAdapter(arrayOf())
 
         sendMessageButton.setOnClickListener {
-            messageLoader?.messages?.add(Pair(messageEditText.text.toString(), MessageType.SENT))
-            messageLoader?.messages?.add(
-                Pair(
-                    messageEditText.text.toString().reversed(),
-                    MessageType.RECEIVED
-                )
-            )
-
+            viewModel.addMessage(messageEditText.text.toString())
             messageEditText.text.clear()
-
-            messagesView.adapter =
-                MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
-            sentMessages += 2
-            if (currentlySelected?.messagesAmount != null) {
-                currentlySelected!!.messagesAmount += 2
-            }
         }
-    }
-
-    fun saveCurrentMessages() {
-        if (currentlySelected != null) {
-            daoSession.deviceDao.save(currentlySelected)
-            messageLoader?.save()
-            val deviceId =
-                statsLoader.data.indexOfFirst { it.deviceName == currentlySelected!!.name }
-            if (deviceId != -1) {
-                statsLoader.data[deviceId] = statsLoader.data[deviceId].copy(
-                    totalMessages = statsLoader.data[deviceId].totalMessages + sentMessages,
-                    deletedMessages = statsLoader.data[deviceId].deletedMessages + deletedMessages
-                )
-            } else {
-                statsLoader.data.add(
-                    StatsLoader.Item(
-                        deviceName = currentlySelected!!.name,
-                        totalMessages = sentMessages,
-                        deletedMessages = deletedMessages
-                    )
-                )
-            }
-        }
-        sentMessages = 0
-        deletedMessages = 0
-
-        statsLoader.save()
     }
 
     override fun onCreateContextMenu(
@@ -150,10 +94,7 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     override fun onContextItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.delete_message -> {
-                messageLoader?.messages?.removeAt((messagesView.adapter as MessageItemAdapter).position)
-                messagesView.adapter =
-                    MessageItemAdapter(messageLoader?.messages?.toTypedArray() ?: arrayOf())
-                deletedMessages += 1
+                viewModel.deleteMessage(item.order)
                 true
             }
 
