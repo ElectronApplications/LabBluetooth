@@ -9,7 +9,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.commit
 import androidx.fragment.app.replace
 import androidx.lifecycle.ViewModelProvider
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private lateinit var viewModel: MainViewModel
 
