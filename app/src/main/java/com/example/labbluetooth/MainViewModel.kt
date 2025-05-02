@@ -49,10 +49,6 @@ class MainViewModel @Inject constructor(
     )
     val uiState: LiveData<MainUiState> get() = _uiState
 
-    init {
-
-    }
-
     fun changeUsername(newUsername: String) {
         username = newUsername
         _uiState.value = _uiState.value?.copy(username = newUsername)
@@ -107,6 +103,27 @@ class MainViewModel @Inject constructor(
         messageRepository?.let { repository ->
             repository.deleteMessage(position)
             _uiState.value = _uiState.value?.copy(messages = repository.messages)
+        }
+    }
+
+    fun statsToText(stats: List<StatsLoader.Item>): String {
+        return if (stats.isNotEmpty()) {
+            var text = "Статистика:\nВсего ${stats.sumOf { it.totalMessages }} сообщений"
+            val maxTotal = stats.maxBy { it.totalMessages }
+            text += "\nБольше всего сообщений - ${maxTotal.deviceName} (${maxTotal.totalMessages})"
+            val maxDeleted = stats.maxBy { it.deletedMessages }
+            text += "\nБольше всего удалено сообщений - ${maxDeleted.deviceName} (${maxDeleted.deletedMessages})"
+            text
+        } else {
+            ""
+        }
+    }
+
+    fun tagsToText(tags: List<DeviceTag>?): String {
+        return if (tags != null) {
+            "Теги: " + tags.joinToString(", ") { it.name }
+        } else {
+            ""
         }
     }
 }

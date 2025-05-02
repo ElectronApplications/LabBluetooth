@@ -3,22 +3,41 @@ package com.example.labbluetooth
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.ContextMenu
+import android.view.LayoutInflater
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
-import android.widget.TextView
+import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.labbluetooth.databinding.FragmentChatBinding
 
 class ChatFragment : Fragment(R.layout.fragment_chat) {
     private lateinit var viewModel: MainViewModel
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
+
+        val binding: FragmentChatBinding =
+            DataBindingUtil.inflate(inflater, R.layout.fragment_chat, container, false)
+
+        binding.viewModel = viewModel
+        binding.lifecycleOwner = this
+
+        return binding.root
+    }
 
     @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -30,7 +49,6 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         val messagesView = view.findViewById<RecyclerView>(R.id.messagesView)
         val messageEditText = view.findViewById<EditText>(R.id.messageEditText)
         val sendMessageButton = view.findViewById<Button>(R.id.sendMessageButton)
-        val tagsTextView = view.findViewById<TextView>(R.id.tagsTextView)
 
         var previousChats = emptyList<Long>()
         viewModel.uiState.observe(viewLifecycleOwner) { uiState ->
@@ -49,12 +67,6 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
             messagesView.adapter =
                 MessageItemAdapter(uiState.messages?.toTypedArray() ?: emptyArray())
-
-            if (uiState.tags != null) {
-                tagsTextView.text = "Теги: " + uiState.tags.joinToString(", ") { it.name }
-            } else {
-                tagsTextView.text = ""
-            }
         }
 
         registerForContextMenu(messagesView)
