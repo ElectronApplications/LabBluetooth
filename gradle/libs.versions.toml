@@ -1,7 +1,8 @@
 [versions]
 agp = "8.7.0"
 fragmentKtx = "1.8.6"
-kotlin = "1.9.24"
+hiltAndroid = "2.56.1"
+kotlin = "2.1.20"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -13,10 +14,13 @@ constraintlayout = "2.1.4"
 swiperefreshlayout = "1.1.0"
 greendaoGradlePlugin = "3.3.1"
 greendao = "3.3.0"
+ksp = "2.1.20-1.0.32"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
+hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -31,4 +35,6 @@ greenrobot-greendao = { group = "org.greenrobot", name = "greendao", version.ref
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 greenrobot-greendao = { id = "org.greenrobot.greendao", version.ref = "greendaoGradlePlugin" }
+hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
+devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

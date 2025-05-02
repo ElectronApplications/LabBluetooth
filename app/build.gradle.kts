@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.greenrobot.greendao)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.devtools.ksp)
+    alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -39,6 +41,9 @@ android {
 }
 
 dependencies {
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+
     implementation(libs.greenrobot.greendao)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

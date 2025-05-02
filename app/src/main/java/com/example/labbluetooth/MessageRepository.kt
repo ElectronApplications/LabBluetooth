@@ -1,6 +1,6 @@
 package com.example.labbluetooth
 
-import android.app.Application
+import android.content.Context
 import com.example.labbluetooth.database.DaoSession
 import com.example.labbluetooth.database.Device
 
@@ -8,9 +8,9 @@ class MessageRepository(
     val device: Device,
     private val statsLoader: StatsLoader,
     private val daoSession: DaoSession,
-    application: Application
+    context: Context
 ) {
-    private var messageLoader = MessageLoader(application, device.name)
+    private var messageLoader = MessageLoader(context, device.name)
     private var sentMessages = 0
     private var deletedMessages = 0
 

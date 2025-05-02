@@ -1,13 +1,16 @@
 package com.example.labbluetooth
 
-import android.app.Application
+import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 import com.example.labbluetooth.database.DaoSession
 import com.example.labbluetooth.database.Device
 import com.example.labbluetooth.database.DeviceTag
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlin.random.Random
 
 val defaultTags =
@@ -21,10 +24,13 @@ data class MainUiState(
     val tags: List<DeviceTag>?
 )
 
-class MainViewModel(private val application: Application) : AndroidViewModel(application) {
-    private val daoSession: DaoSession = (application as App).daoSession
-    private val statsLoader = StatsLoader(application)
-    private val deviceRepository = DeviceRepository(daoSession, application)
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val daoSession: DaoSession,
+    private val statsLoader: StatsLoader,
+    private val deviceRepository: DeviceRepository,
+    @ApplicationContext private val context: Context
+) : ViewModel() {
     private var messageRepository: MessageRepository? = null
 
     var username: String = "Guest"
@@ -43,13 +49,17 @@ class MainViewModel(private val application: Application) : AndroidViewModel(app
     )
     val uiState: LiveData<MainUiState> get() = _uiState
 
+    init {
+
+    }
+
     fun changeUsername(newUsername: String) {
         username = newUsername
         _uiState.value = _uiState.value?.copy(username = newUsername)
     }
 
     fun exportStats(): Uri {
-        return saveImage(application, generateStatsImage(statsLoader.data))
+        return saveImage(context, generateStatsImage(statsLoader.data))
     }
 
     fun updateDevices() {
@@ -73,7 +83,7 @@ class MainViewModel(private val application: Application) : AndroidViewModel(app
         saveCurrentMessages()
         try {
             val device = chats.first { it.name == deviceName }
-            val repository = MessageRepository(device, statsLoader, daoSession, application)
+            val repository = MessageRepository(device, statsLoader, daoSession, context)
             messageRepository = repository
 
             _uiState.value = _uiState.value?.copy(
